@@ -24,14 +24,15 @@ public class TrustedDeviceCondition implements ConditionalAuthenticator {
 
     boolean trustedDevice = credential != null;
 
+    boolean negateOutput;
     if (authConfig != null && authConfig.getConfig() != null) {
-      boolean negateOutput = Boolean.parseBoolean(
-          authConfig.getConfig().get(TrustedDeviceConditionFactory.CONF_NEGATE));
-
-      return negateOutput != trustedDevice;
+      negateOutput = Boolean.parseBoolean(
+          authConfig.getConfig().getOrDefault(TrustedDeviceConditionFactory.CONF_NEGATE, "true"));
+    } else {
+        negateOutput = true; // Negate output by default
     }
 
-    return false;
+    return negateOutput != trustedDevice;
   }
 
   @Override
