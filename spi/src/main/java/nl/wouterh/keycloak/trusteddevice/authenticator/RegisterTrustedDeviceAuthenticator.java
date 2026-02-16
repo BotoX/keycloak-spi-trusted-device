@@ -23,9 +23,11 @@ import org.keycloak.common.util.Time;
 import org.keycloak.credential.CredentialModel;
 import org.keycloak.credential.CredentialProvider;
 import org.keycloak.models.AuthenticatorConfigModel;
+import org.keycloak.models.Constants;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.sessions.AuthenticationSessionModel;
 
 public class RegisterTrustedDeviceAuthenticator implements Authenticator {
 
@@ -131,11 +133,15 @@ public class RegisterTrustedDeviceAuthenticator implements Authenticator {
 
       TrustedDeviceToken token = new TrustedDeviceToken(credential.getId(), deviceId, exp);
       TrustedDeviceToken.addCookie(session, realm, token, cookieExpirationTime);
+    } else if ("passkey".equals(formParameters.getFirst("trusted-device"))) {
+      AuthenticationSessionModel authSession = context.getAuthenticationSession();
+      authSession.setClientNote(Constants.KC_ACTION, "webauthn-register-passwordless");
+      authSession.setClientNote(Constants.KC_ACTION_EXECUTING, "webauthn-register-passwordless");
+      authSession.removeClientNote(Constants.KC_ACTION_ENFORCED);
     }
 
     context.success();
   }
-
 
   @Override
   public boolean requiresUser() {

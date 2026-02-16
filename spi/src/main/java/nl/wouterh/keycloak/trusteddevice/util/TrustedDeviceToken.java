@@ -44,6 +44,7 @@ public class TrustedDeviceToken extends JsonWebToken {
       .value(value)
       .path(path)
       .secure(secure)
+      .httpOnly(true)
       .sameSite(sameSiteValue)
       .build();
 
