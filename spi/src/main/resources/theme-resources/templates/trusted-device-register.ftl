@@ -2,7 +2,7 @@
 <@layout.registrationLayout displayInfo=true; section>
     <#if section = "title">
     <#elseif section = "header">
-        ${msg("trusted-device-header")}
+        ${msg("trusted-device-header", trustedDurationDays)}
     <#elseif section="form">
       <form id="kc-form-trusted-device" class="${properties.kcFormClass!}"
             action="${url.loginAction}"
@@ -31,7 +31,7 @@
 
           <div class="${properties.kcFormButtonsClass!}">
               <#if (auth?has_content && auth.showUsername() && !auth.showResetCredentials())>
-                <h2 style="margin-top: 0">${msg("trusted-device-header")}</h2>
+                <h2 style="margin-top: 0">${msg("trusted-device-header", trustedDurationDays)}</h2>
               </#if>
             <button
                 class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonBlockClass!} ${properties.kcButtonLargeClass!}"
