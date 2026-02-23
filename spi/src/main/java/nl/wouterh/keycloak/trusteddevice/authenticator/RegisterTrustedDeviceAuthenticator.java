@@ -194,9 +194,11 @@ public class RegisterTrustedDeviceAuthenticator implements Authenticator, Requir
     }
 
     boolean trustedDevice = "yes".equals(formParameters.getFirst("trusted-device"));
+    boolean passkeyButton = "passkey".equals(formParameters.getFirst("trusted-device"));
+    boolean trustedCheck = "on".equals(formParameters.getFirst("trusted-check"));
     String deviceName = formParameters.getFirst("trusted-device-name");
 
-    if (trustedDevice && !Strings.isNullOrEmpty(deviceName)) {
+    if (trustedCheck && (trustedDevice || passkeyButton) && !Strings.isNullOrEmpty(deviceName)) {
       TrustedDeviceCredentialProvider trustedDeviceCredentialProvider = (TrustedDeviceCredentialProvider) session.getProvider(
           CredentialProvider.class, TrustedDeviceCredentialProviderFactory.PROVIDER_ID);
 
@@ -243,7 +245,8 @@ public class RegisterTrustedDeviceAuthenticator implements Authenticator, Requir
 
       TrustedDeviceToken token = new TrustedDeviceToken(credential.getId(), deviceId, exp);
       TrustedDeviceToken.addCookie(session, realm, token, cookieExpirationTime);
-    } else if ("passkey".equals(formParameters.getFirst("trusted-device"))) {
+    }
+    if (passkeyButton) {
       authSession.setClientNote(Constants.KC_ACTION, "webauthn-register-passwordless");
       authSession.setClientNote(Constants.KC_ACTION_EXECUTING, "webauthn-register-passwordless");
       authSession.removeClientNote(Constants.KC_ACTION_ENFORCED);
@@ -309,6 +312,7 @@ public class RegisterTrustedDeviceAuthenticator implements Authenticator, Requir
      * (AIA are hard-coded to run last, so just check for that and register our action right after)
      */
     String activeAction = authSession.getClientNote(Constants.KC_ACTION);
+    String actionStatus = authSession.getClientNote(Constants.KC_ACTION_STATUS);
     if (state == "1") {
       if (Strings.isNullOrEmpty(activeAction)) {
         authSession.addRequiredAction(getId());
@@ -317,7 +321,7 @@ public class RegisterTrustedDeviceAuthenticator implements Authenticator, Requir
         authSession.setAuthNote(getId(), "2");
       }
     } else if (state == "2") {
-      if (Strings.isNullOrEmpty(activeAction)) {
+      if (Strings.isNullOrEmpty(activeAction) && "success".equals(actionStatus)) {
         authSession.addRequiredAction(getId());
         authSession.removeAuthNote(getId());
       }
