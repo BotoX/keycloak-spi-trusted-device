@@ -1,9 +1,14 @@
 package nl.wouterh.keycloak.trusteddevice.credential;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.keycloak.common.util.Time;
+import org.keycloak.credential.CredentialMetadata;
 import org.keycloak.credential.CredentialModel;
 import org.keycloak.credential.CredentialProvider;
 import org.keycloak.credential.CredentialTypeMetadata;
@@ -16,6 +21,8 @@ public class TrustedDeviceCredentialProvider implements
     CredentialProvider<TrustedDeviceCredentialModel> {
 
   private KeycloakSession session;
+  private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+            .withZone(ZoneId.systemDefault());
 
   public TrustedDeviceCredentialProvider(KeycloakSession session) {
     this.session = session;
@@ -52,6 +59,8 @@ public class TrustedDeviceCredentialProvider implements
     List<TrustedDeviceCredentialModel> credentials = removeExpiredCredentials(realm, user);
     for (TrustedDeviceCredentialModel credential : credentials) {
       if (id.equals(credential.getId())) {
+        credential.updateLastUsed();
+        user.credentialManager().updateStoredCredential(credential);
         return credential;
       }
     }
@@ -90,5 +99,23 @@ public class TrustedDeviceCredentialProvider implements
         .iconCssClass("kcAuthenticatorWebAuthnClass")
         .removeable(true)
         .build(session);
+  }
+
+  @Override
+  public CredentialMetadata getCredentialMetadata(TrustedDeviceCredentialModel credentialModel, CredentialTypeMetadata credentialTypeMetadata) {
+      CredentialMetadata credentialMetadata = new CredentialMetadata();
+      List<CredentialMetadata.LocalizedMessage> properties = new LinkedList<>();
+
+      TrustedDeviceCredentialModel deviceIdModel = TrustedDeviceCredentialModel.createFromCredentialModel(credentialModel);
+
+      properties.add(new CredentialMetadata.LocalizedMessage("expires",
+          new String[] { formatter.format(Instant.ofEpochSecond(deviceIdModel.getExpireTime())) }));
+      properties.add(new CredentialMetadata.LocalizedMessage("lastAccessedOn",
+          new String[] { formatter.format(Instant.ofEpochSecond(deviceIdModel.getLastUsedTime())) }));
+
+      credentialMetadata.setInfoProperties(properties);
+
+      credentialMetadata.setCredentialModel(credentialModel);
+      return credentialMetadata;
   }
 }

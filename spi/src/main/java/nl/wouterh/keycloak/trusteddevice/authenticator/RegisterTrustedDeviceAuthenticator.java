@@ -207,14 +207,11 @@ public class RegisterTrustedDeviceAuthenticator implements Authenticator, Requir
       secureRandom.nextBytes(bytes);
       String deviceId = Hex.encodeHexString(bytes);
 
-      // Expire the token in 1 year
+      // Set expiry time in unix epoch time (seconds)
       Long exp = null;
       String credentialName = deviceName;
       if (duration != null) {
         exp = Time.currentTime() + duration.getSeconds();
-
-        credentialName = String.format("%s (Expires: %s)", deviceName,
-            formatter.format(Instant.ofEpochSecond(exp)));
       }
 
       TrustedDeviceCredentialModel trustedDeviceCredentialModel = TrustedDeviceCredentialModel.create(
@@ -229,11 +226,7 @@ public class RegisterTrustedDeviceAuthenticator implements Authenticator, Requir
           .filter(cred -> {
             TrustedDeviceCredentialModel model = TrustedDeviceCredentialModel.createFromCredentialModel(cred);
             String existingLabel = model.getUserLabel();
-            // Extract device name from label (handles both "Device" and "Device (Expires: ...)" formats)
-            String existingDeviceName = existingLabel.contains(" (Expires: ")
-                ? existingLabel.substring(0, existingLabel.indexOf(" (Expires: "))
-                : existingLabel;
-            return deviceName.equals(existingDeviceName);
+            return deviceName.equals(existingLabel);
           })
           .forEach(cred -> user.credentialManager().removeStoredCredentialById(cred.getId()));
 

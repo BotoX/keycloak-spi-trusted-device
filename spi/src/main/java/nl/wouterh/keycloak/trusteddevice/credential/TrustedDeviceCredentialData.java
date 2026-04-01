@@ -10,5 +10,6 @@ import lombok.NoArgsConstructor;
 public class TrustedDeviceCredentialData {
 
   private Long expireTime;
+  private long lastUsedTime;
 
 }

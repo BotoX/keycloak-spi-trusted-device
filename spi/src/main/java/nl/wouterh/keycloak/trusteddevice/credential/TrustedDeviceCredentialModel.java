@@ -22,6 +22,10 @@ public class TrustedDeviceCredentialModel extends CredentialModel {
     return credentialData.getExpireTime();
   }
 
+  public Long getLastUsedTime() {
+    return credentialData.getLastUsedTime();
+  }
+
   public String getDeviceId() {
     return secretData.getDeviceId();
   }
@@ -29,7 +33,7 @@ public class TrustedDeviceCredentialModel extends CredentialModel {
   public static TrustedDeviceCredentialModel create(String userLabel, String deviceId,
       Long expireTime) {
     TrustedDeviceCredentialData trustedDeviceCredentialData = new TrustedDeviceCredentialData(
-        expireTime);
+        expireTime, Time.currentTime());
     TrustedDeviceSecretData trustedDeviceSecretData = new TrustedDeviceSecretData(deviceId);
     TrustedDeviceCredentialModel credentialModel = new TrustedDeviceCredentialModel(
         trustedDeviceCredentialData, trustedDeviceSecretData);
@@ -72,6 +76,15 @@ public class TrustedDeviceCredentialModel extends CredentialModel {
       setCreatedDate(Time.currentTimeMillis());
     } catch (IOException e) {
       throw new RuntimeException(e);
+    }
+  }
+
+  public void updateLastUsed() {
+    credentialData.setLastUsedTime(Time.currentTime());
+    try {
+        setCredentialData(JsonSerialization.writeValueAsString(credentialData));
+    } catch (IOException e) {
+        throw new RuntimeException(e);
     }
   }
 }
