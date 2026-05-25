@@ -9,9 +9,6 @@ import static nl.wouterh.keycloak.trusteddevice.authenticator.RegisterTrustedDev
 import java.io.IOException;
 import java.security.SecureRandom;
 import java.time.Duration;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.List;
 
@@ -37,6 +34,9 @@ import org.keycloak.models.UserModel;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.util.JsonSerialization;
+import org.keycloak.events.Details;
+import org.keycloak.events.EventBuilder;
+import org.keycloak.events.EventType;
 
 import com.google.auto.service.AutoService;
 import com.google.common.base.Strings;
@@ -53,8 +53,6 @@ import nl.wouterh.keycloak.trusteddevice.util.UserAgentParser;
 public class RegisterTrustedDeviceAuthenticator implements Authenticator, RequiredActionProvider, RequiredActionFactory {
 
   private static final SecureRandom secureRandom = new SecureRandom();
-  private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-      .withZone(ZoneId.of("UTC"));
 
   private final KeycloakSession session_;
 
@@ -179,7 +177,7 @@ public class RegisterTrustedDeviceAuthenticator implements Authenticator, Requir
   }
 
   private void performRegistration(KeycloakSession session, Map<String, String> config, RealmModel realm, UserModel user,
-      MultivaluedMap<String, String> formParameters, AuthenticationSessionModel authSession) {
+      MultivaluedMap<String, String> formParameters, AuthenticationSessionModel authSession, EventBuilder event) {
 
     TrustedDeviceCredentialModel existingCredential = TrustedDeviceToken.getCredentialFromCookie(session, realm, user);
     if (existingCredential != null) {
@@ -234,6 +232,11 @@ public class RegisterTrustedDeviceAuthenticator implements Authenticator, Requir
       CredentialModel credential = trustedDeviceCredentialProvider.createCredential(realm, user,
           trustedDeviceCredentialModel);
 
+      event.event(EventType.UPDATE_CREDENTIAL)
+          .detail(Details.CREDENTIAL_TYPE, TrustedDeviceCredentialModel.TYPE_TWOFACTOR)
+          .detail(Details.CREDENTIAL_USER_LABEL, deviceName)
+          .detail(Details.CREDENTIAL_ID, credential.getId());
+
       int cookieExpirationTime = duration != null ? (int) duration.getSeconds() : Integer.MAX_VALUE;
 
       TrustedDeviceToken token = new TrustedDeviceToken(credential.getId(), deviceId, exp);
@@ -250,6 +253,7 @@ public class RegisterTrustedDeviceAuthenticator implements Authenticator, Requir
   public void action(AuthenticationFlowContext context) {
     UserModel user = context.getUser();
     RealmModel realm = context.getRealm();
+    EventBuilder event = context.getEvent();
 
     AuthenticatorConfigModel authenticatorConfig = context.getAuthenticatorConfig();
     Map<String, String> config = null;
@@ -262,7 +266,7 @@ public class RegisterTrustedDeviceAuthenticator implements Authenticator, Requir
 
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
 
-    performRegistration(session_, config, realm, user, formParameters, authSession);
+    performRegistration(session_, config, realm, user, formParameters, authSession, event);
 
     context.success();
   }
@@ -271,6 +275,7 @@ public class RegisterTrustedDeviceAuthenticator implements Authenticator, Requir
   public void processAction(RequiredActionContext context) {
     UserModel user = context.getUser();
     RealmModel realm = context.getRealm();
+    EventBuilder event = context.getEvent();
 
     RequiredActionProviderModel model = realm.getRequiredActionProviderByAlias(getId());
     RequiredActionConfigModel actionConfig = realm.getRequiredActionConfigByAlias(model.getAlias());
@@ -284,7 +289,7 @@ public class RegisterTrustedDeviceAuthenticator implements Authenticator, Requir
 
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
 
-    performRegistration(context.getSession(), config, realm, user, formParameters, authSession);
+    performRegistration(context.getSession(), config, realm, user, formParameters, authSession, event);
 
     context.success();
   }
