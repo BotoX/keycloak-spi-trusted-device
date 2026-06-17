@@ -11,6 +11,8 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.Map;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.commons.codec.binary.Hex;
 import org.keycloak.Config;
@@ -207,26 +209,32 @@ public class RegisterTrustedDeviceAuthenticator implements Authenticator, Requir
 
       // Set expiry time in unix epoch time (seconds)
       Long exp = null;
-      String credentialName = deviceName;
       if (duration != null) {
         exp = Time.currentTime() + duration.getSeconds();
       }
 
-      TrustedDeviceCredentialModel trustedDeviceCredentialModel = TrustedDeviceCredentialModel.create(
-          credentialName, deviceId, exp);
-
       trustedDeviceCredentialProvider.removeExpiredCredentials(realm, user);
 
-      // Remove any existing credentials with the same device name to handle the case
-      // where the user has cleared their cookies but the old credential still exists
-      user.credentialManager()
+      // Generate a unique device name by appending (1), (2), etc. if the label already exists
+      Set<String> conflictingLabels = user.credentialManager()
           .getStoredCredentialsByTypeStream(TrustedDeviceCredentialModel.TYPE_TWOFACTOR)
-          .filter(cred -> {
-            TrustedDeviceCredentialModel model = TrustedDeviceCredentialModel.createFromCredentialModel(cred);
-            String existingLabel = model.getUserLabel();
-            return deviceName.equals(existingLabel);
-          })
-          .forEach(cred -> user.credentialManager().removeStoredCredentialById(cred.getId()));
+          .map(cred -> TrustedDeviceCredentialModel.createFromCredentialModel(cred).getUserLabel())
+          .filter(label -> label != null && label.startsWith(deviceName))
+          .collect(Collectors.toSet());
+
+      String uniqueDeviceName = deviceName;
+      if (conflictingLabels.contains(uniqueDeviceName)) {
+        int counter = 1;
+        String candidate;
+        do {
+          candidate = deviceName + " (" + counter + ")";
+          counter++;
+        } while (conflictingLabels.contains(candidate));
+        uniqueDeviceName = candidate;
+      }
+
+      TrustedDeviceCredentialModel trustedDeviceCredentialModel = TrustedDeviceCredentialModel.create(
+          uniqueDeviceName, deviceId, exp);
 
       // Add the new credential
       CredentialModel credential = trustedDeviceCredentialProvider.createCredential(realm, user,
@@ -234,7 +242,7 @@ public class RegisterTrustedDeviceAuthenticator implements Authenticator, Requir
 
       event.event(EventType.UPDATE_CREDENTIAL)
           .detail(Details.CREDENTIAL_TYPE, TrustedDeviceCredentialModel.TYPE_TWOFACTOR)
-          .detail(Details.CREDENTIAL_USER_LABEL, deviceName)
+          .detail(Details.CREDENTIAL_USER_LABEL, uniqueDeviceName)
           .detail(Details.CREDENTIAL_ID, credential.getId());
 
       int cookieExpirationTime = duration != null ? (int) duration.getSeconds() : Integer.MAX_VALUE;
