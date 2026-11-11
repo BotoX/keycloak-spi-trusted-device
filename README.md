@@ -37,6 +37,14 @@ as such:
 Following the above example the user would be prompted for a second factor every 90 days on each
 device.
 
+### Multiple accounts on one browser
+
+The trusted-device token is stored in a per-user cookie (`KEYCLOAK_TRUSTED_DEVICE_<hash of user id>`),
+so several accounts can each be trusted on the same browser. Cookies written by earlier versions
+(`KEYCLOAK_TRUSTED_DEVICE`) are still honoured: the first time such a cookie is valid for a user it is
+migrated to the per-user cookie and the legacy cookie is removed. A legacy cookie that belongs to a
+different account is left untouched.
+
 During login the user will be prompted if they want to trust the device:
 
 ![](doc/login-trust-device.png)

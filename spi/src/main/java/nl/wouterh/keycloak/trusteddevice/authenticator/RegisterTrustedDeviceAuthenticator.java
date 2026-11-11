@@ -248,7 +248,7 @@ public class RegisterTrustedDeviceAuthenticator implements Authenticator, Requir
       int cookieExpirationTime = duration != null ? (int) duration.getSeconds() : Integer.MAX_VALUE;
 
       TrustedDeviceToken token = new TrustedDeviceToken(credential.getId(), deviceId, exp);
-      TrustedDeviceToken.addCookie(session, realm, token, cookieExpirationTime);
+      TrustedDeviceToken.addCookie(session, realm, user, token, cookieExpirationTime);
     }
     if (passkeyButton) {
       authSession.setClientNote(Constants.KC_ACTION, "webauthn-register-passwordless");
